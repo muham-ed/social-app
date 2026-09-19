@@ -2,7 +2,7 @@
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,20,24&height=200&section=header&text=Social%20App&fontSize=80&fontAlignY=35&desc=Next-Generation%20Social%20Platform&descAlignY=55&descSize=20" width="100%"/>
 
-# 🚀 Social App
+#  Social App
 
 ### منصة تواصل اجتماعي متكاملة من الجيل القادم
 
@@ -18,7 +18,7 @@
 
 ## 📖 نبذة عن المشروع
 **Social App** منصة تواصل اجتماعي متكاملة تجمع بين أفضل ما في التطبيقات العالمية:
-> 🎬 **فيديوهات قصيرة** بنمط TikTok • 🎙️ **غرف صوتية مباشرة** بنمط Clubhouse • 📍 **تعارف جغرافي** • 💬 **مراسلة فورية** • 🛡️ **إشراف وحماية (UGC)**
+>  **فيديوهات قصيرة** بنمط TikTok •  **غرف صوتية مباشرة** بنمط Clubhouse •  **تعارف جغرافي** •  **مراسلة فورية** • 🛡️ **إشراف وحماية (UGC)**
 
 ---
 
