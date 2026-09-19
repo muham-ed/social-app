@@ -41,6 +41,15 @@ class ChatMessageReported extends ChatEvent {
   const ChatMessageReported(this.messageId, this.reason);
 }
 
+class ChatTypingStarted extends ChatEvent {}
+class ChatTypingStopped extends ChatEvent {}
+class ChatPartnerTypingStatusChanged extends ChatEvent {
+  final bool isTyping;
+  const ChatPartnerTypingStatusChanged(this.isTyping);
+  @override
+  List<Object?> get props => [isTyping];
+}
+
 abstract class ChatState extends Equatable {
   const ChatState();
   @override
@@ -52,9 +61,10 @@ class ChatLoading extends ChatState {}
 class ChatLoaded extends ChatState {
   final List<Message> messages;
   final bool isBlocked;
-  const ChatLoaded({required this.messages, this.isBlocked = false});
+  final bool isPartnerTyping;
+  const ChatLoaded({required this.messages, this.isBlocked = false, this.isPartnerTyping = false});
   @override
-  List<Object?> get props => [messages, isBlocked];
+  List<Object?> get props => [messages, isBlocked, isPartnerTyping];
 }
 class ChatError extends ChatState {
   final String message;
@@ -72,16 +82,23 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatMessageReceived>(_onMessageReceived);
     on<ChatUserBlocked>(_onUserBlocked);
     on<ChatMessageReported>(_onMessageReported);
+    on<ChatTypingStarted>(_onTypingStarted);
+    on<ChatTypingStopped>(_onTypingStopped);
+    on<ChatPartnerTypingStatusChanged>(_onPartnerTypingStatusChanged);
   }
 
   Future<void> _onLoadStarted(ChatLoadStarted event, Emitter<ChatState> emit) async {
     _targetUserId = event.userId;
     emit(ChatLoading());
     
-    // بدء مراقبة الرسائل الحية
+    // بدء مراقبة الرسائل الحية والـ Typing
     _msgSubscription?.cancel();
     _msgSubscription = _repo.watchMessages(_targetUserId).listen((res) {
       res.fold((_) => null, (msg) => add(ChatMessageReceived(msg)));
+    });
+
+    _repo.watchTypingStatus(_targetUserId).listen((isTyping) {
+      add(ChatPartnerTypingStatusChanged(isTyping));
     });
 
     final res = await _repo.getMessagesHistory(_targetUserId);
@@ -145,6 +162,25 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   Future<void> _onMessageReported(ChatMessageReported event, Emitter<ChatState> emit) async {
     await _repo.reportMessage(messageId: event.messageId, reason: event.reason);
+  }
+
+  void _onPartnerTypingStatusChanged(ChatPartnerTypingStatusChanged event, Emitter<ChatState> emit) {
+    if (state is ChatLoaded) {
+      final currentState = state as ChatLoaded;
+      emit(ChatLoaded(
+        messages: currentState.messages,
+        isBlocked: currentState.isBlocked,
+        isPartnerTyping: event.isTyping,
+      ));
+    }
+  }
+
+  void _onTypingStarted(ChatTypingStarted event, Emitter<ChatState> emit) {
+    _repo.sendTypingStatus(receiverId: _targetUserId, isTyping: true);
+  }
+
+  void _onTypingStopped(ChatTypingStopped event, Emitter<ChatState> emit) {
+    _repo.sendTypingStatus(receiverId: _targetUserId, isTyping: false);
   }
 
   @override

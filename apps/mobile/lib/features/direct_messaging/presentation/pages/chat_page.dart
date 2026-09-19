@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection.dart';
 import '../../../auth/domain/entities/user.dart';
+import '../../../report_block/presentation/widgets/report_sheet.dart';
 import '../bloc/chat_bloc.dart';
 
 class ChatPage extends StatefulWidget {
@@ -15,11 +17,20 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final _ctrl = TextEditingController();
   late final ChatBloc _bloc;
+  Timer? _typingTimer;
 
   @override
   void initState() {
     super.initState();
     _bloc = getIt<ChatBloc>()..add(ChatLoadStarted(widget.user.id));
+  }
+
+  void _onTextChanged(String val) {
+    if (_typingTimer?.isActive ?? false) _typingTimer?.cancel();
+    _bloc.add(ChatTypingStarted());
+    _typingTimer = Timer(const Duration(seconds: 2), () {
+      _bloc.add(ChatTypingStopped());
+    });
   }
 
   @override
@@ -34,10 +45,25 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundImage: NetworkImage(widget.user.avatar),
+                backgroundImage: widget.user.avatar.isNotEmpty ? NetworkImage(widget.user.avatar) : null,
+                child: widget.user.avatar.isEmpty ? Text(widget.user.name[0]) : null,
               ),
               const SizedBox(width: 10),
-              Text(widget.user.name, style: const TextStyle(fontSize: 16)),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(widget.user.name, style: const TextStyle(fontSize: 16)),
+                  BlocBuilder<ChatBloc, ChatState>(
+                    builder: (context, state) {
+                      if (state is ChatLoaded && state.isPartnerTyping) {
+                        return const Text('يكتب الآن...', style: TextStyle(fontSize: 12, color: Colors.green));
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ],
+              ),
             ],
           ),
           actions: [
@@ -107,6 +133,7 @@ class _ChatPageState extends State<ChatPage> {
                 Expanded(
                   child: TextField(
                     controller: _ctrl,
+                    onChanged: _onTextChanged,
                     decoration: InputDecoration(
                       hintText: 'اكتب رسالة...',
                       filled: true,
@@ -154,9 +181,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _showReportDialog() {
-    // منطق التبليغ - يمكن توسيعه ليشمل أسباباً محددة
-    _bloc.add(const ChatMessageReported('last_msg_id', 'محتوى غير لائق'));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال التبليغ للإدارة')));
+    ReportSheet.show(context, targetType: 'user', targetId: widget.user.id);
   }
 }
 

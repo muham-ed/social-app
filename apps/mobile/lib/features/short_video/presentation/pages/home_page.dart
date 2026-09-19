@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection.dart';
 import '../bloc/feed_bloc.dart';
 import '../widgets/video_player_item.dart';
+import 'upload_video_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -50,15 +51,30 @@ class _HomePageState extends State<HomePage> {
                   child: Text('لا توجد فيديوهات بعد', style: TextStyle(color: Colors.white)),
                 );
               }
-              return PageView.builder(
-                controller: _pageCtrl,
-                scrollDirection: Axis.vertical,
-                itemCount: state.videos.length,
-                onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (context, i) => VideoPlayerItem(
-                  video: state.videos[i],
-                  isActive: i == _index,
-                ),
+              return Stack(
+                children: [
+                  PageView.builder(
+                    controller: _pageCtrl,
+                    scrollDirection: Axis.vertical,
+                    itemCount: state.videos.length,
+                    onPageChanged: (i) => setState(() => _index = i),
+                    itemBuilder: (context, i) => VideoPlayerItem(
+                      video: state.videos[i],
+                      isActive: i == _index,
+                    ),
+                  ),
+                  Positioned(
+                    top: 50,
+                    right: 16,
+                    child: IconButton(
+                      icon: const Icon(Icons.add_a_photo, color: Colors.white, size: 30),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const UploadVideoPage()),
+                      ),
+                    ),
+                  ),
+                ],
               );
             }
             return const SizedBox.shrink();

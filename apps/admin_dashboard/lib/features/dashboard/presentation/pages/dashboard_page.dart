@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/network/api_client.dart';
+import '../../data/repositories/admin_repository_impl.dart';
+import '../../domain/repositories/admin_repository.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -9,70 +13,95 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   int _selectedTab = 0;
+  late final AdminRepository _repo;
+  bool _loading = true;
 
-  // Mock data representing standard fields for application control
-  final List<Map<String, dynamic>> _users = [
-    {'id': '1', 'name': 'أحمد عبد الله', 'username': 'ahmed99', 'role': 'user', 'isBanned': false, 'email': 'ahmed@test.com'},
-    {'id': '2', 'name': 'سارة محمد', 'username': 'sara_m', 'role': 'user', 'isBanned': true, 'email': 'sara@test.com'},
-    {'id': '3', 'name': 'محمد علي', 'username': 'admin_mo', 'role': 'admin', 'isBanned': false, 'email': 'admin@test.com'},
-  ];
-
-  final List<Map<String, dynamic>> _reports = [
-    {'id': 'r1', 'reporter': 'ahmed99', 'targetType': 'video', 'targetId': 'v101', 'reason': 'spam', 'description': 'محتوى دعائي متكرر مزعج جداً', 'status': 'pending'},
-    {'id': 'r2', 'reporter': 'user_xyz', 'targetType': 'user', 'targetId': '2', 'reason': 'harassment', 'description': 'توجيه إساءات متكررة في الغرف الصوتية', 'status': 'resolved'},
-  ];
-
-  final List<Map<String, dynamic>> _rooms = [
-    {'id': 'rm1', 'title': 'مناقشات الذكاء الاصطناعي البرمجية', 'type': 'audio', 'owner': 'أحمد عبد الله', 'listeners': 42, 'isActive': true},
-    {'id': 'rm2', 'title': 'بث مباشر - خواطر وتصميم هندسي', 'type': 'video', 'owner': 'مهندس رامي', 'listeners': 156, 'isActive': true},
-  ];
-
-  final List<Map<String, dynamic>> _videos = [
-    {'id': 'v101', 'author': 'ahmed99', 'caption': 'تطوير تطبيق تواصل اجتماعي مبتكر بـ Flutter #برمجة', 'views': 1240, 'likes': 380},
-    {'id': 'v102', 'author': 'sara_m', 'caption': 'أفضل النصائح لتصميم شاشات فيجما جذابة وسلسة', 'views': 9500, 'likes': 2400},
-  ];
+  List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _reports = [];
+  List<Map<String, dynamic>> _rooms = [];
+  List<Map<String, dynamic>> _videos = [];
+  Map<String, dynamic> _stats = {};
 
   final _notifTitleCtrl = TextEditingController();
   final _notifBodyCtrl = TextEditingController();
 
-  void _toggleBan(int index) {
-    setState(() {
-      _users[index]['isBanned'] = !_users[index]['isBanned'];
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_users[index]['isBanned'] ? 'تم حظر المستخدم بنجاح' : 'تم إلغاء حظر المستخدم')),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _repo = AdminRepositoryImpl(ApiClient());
+    _fetchAll();
   }
 
-  void _closeRoom(int index) {
-    setState(() {
-      _rooms[index]['isActive'] = false;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم إغلاق الغرفة وإنهاء البث بنجاح')),
-    );
+  Future<void> _fetchAll() async {
+    setState(() => _loading = true);
+    try {
+      final data = await Future.wait([
+        _repo.getStats(),
+        _repo.listUsers(),
+        _repo.listReports(),
+        _repo.listActiveRooms(),
+        _repo.listVideos(),
+      ]);
+      setState(() {
+        _stats = data[0] as Map<String, dynamic>;
+        _users = data[1] as List<Map<String, dynamic>>;
+        _reports = data[2] as List<Map<String, dynamic>>;
+        _rooms = data[3] as List<Map<String, dynamic>>;
+        _videos = data[4] as List<Map<String, dynamic>>;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في تحميل البيانات: $e')));
+    }
   }
 
-  void _deleteVideo(String id) {
-    setState(() {
-      _videos.removeWhere((v) => v['id'] == id);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم حذف الفيديو لمخالفته شروط الاستخدام')),
-    );
+  Future<void> _toggleBan(int index) async {
+    final userId = _users[index]['_id'];
+    try {
+      await _repo.toggleUserBan(userId);
+      setState(() {
+        _users[index]['isBanned'] = !(_users[index]['isBanned'] ?? false);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_users[index]['isBanned'] ? 'تم حظر المستخدم بنجاح' : 'تم إلغاء حظر المستخدم')),
+      );
+    } catch (_) {}
   }
 
-  void _sendGlobalNotification() {
+  Future<void> _closeRoom(int index) async {
+    try {
+      await _repo.closeRoom(_rooms[index]['_id']);
+      setState(() {
+        _rooms[index]['isActive'] = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إغلاق الغرفة بنجاح')));
+    } catch (_) {}
+  }
+
+  Future<void> _deleteVideo(String id) async {
+    try {
+      await _repo.deleteVideo(id);
+      setState(() {
+        _videos.removeWhere((v) => v['_id'] == id);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حذف الفيديو')));
+    } catch (_) {}
+  }
+
+  Future<void> _sendGlobalNotification() async {
     if (_notifTitleCtrl.text.trim().isEmpty || _notifBodyCtrl.text.trim().isEmpty) return;
-    _notifTitleCtrl.clear();
-    _notifBodyCtrl.clear();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم إرسال الإشعار الجماعي لكافة مستخدمي التطبيق بنجاح')),
-    );
+    try {
+      await _repo.sendGlobalNotification(_notifTitleCtrl.text.trim(), _notifBodyCtrl.text.trim());
+      _notifTitleCtrl.clear();
+      _notifBodyCtrl.clear();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال الإشعار بنجاح')));
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     return Scaffold(
       body: Row(
         children: [
@@ -171,13 +200,13 @@ class _DashboardPageState extends State<DashboardPage> {
         const SizedBox(height: 24),
         Row(
           children: [
-            _statCard('إجمالي المستخدمين', '142,530', Icons.people, Colors.blue),
+            _statCard('إجمالي المستخدمين', '${_stats['users']?['total'] ?? 0}', Icons.people, Colors.blue),
             const SizedBox(width: 20),
-            _statCard('الغرف النشطة حالياً', '248', Icons.mic, Colors.purple),
+            _statCard('الغرف النشطة حالياً', '${_stats['rooms']?['active'] ?? 0}', Icons.mic, Colors.purple),
             const SizedBox(width: 20),
-            _statCard('البلاغات المعلقة', '${_reports.where((r)=>r['status']=='pending').length}', Icons.warning, Colors.amber),
+            _statCard('البلاغات المعلقة', '${_stats['reports']?['pending'] ?? 0}', Icons.warning, Colors.amber),
             const SizedBox(width: 20),
-            _statCard('إجمالي الفيديوهات القصيرة', '89,410', Icons.video_collection, Colors.pink),
+            _statCard('إجمالي الفيديوهات القصيرة', '${_stats['videos']?['total'] ?? 0}', Icons.video_collection, Colors.pink),
           ],
         ),
         const SizedBox(height: 40),
@@ -257,10 +286,10 @@ class _DashboardPageState extends State<DashboardPage> {
                   trailing: ElevatedButton(
                     onPressed: () => _toggleBan(i),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: u['isBanned'] ? Colors.green : Colors.red,
+                      backgroundColor: (u['isBanned'] ?? false) ? Colors.green : Colors.red,
                       foregroundColor: Colors.white,
                     ),
-                    child: Text(u['isBanned'] ? 'إلغاء الحظر' : 'حظر الحساب'),
+                    child: Text((u['isBanned'] ?? false) ? 'إلغاء الحظر' : 'حظر الحساب'),
                   ),
                 );
               },
@@ -295,7 +324,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('بلاغ رقم: ${r['id']} | نوع الهدف: ${r['targetType']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFD79A8))),
+                          Text('بلاغ رقم: ${r['_id']} | نوع الهدف: ${r['targetType']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFD79A8))),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
@@ -307,7 +336,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('المُبلغ: @${r['reporter']} | معرّف المحتوى المخالف: ${r['targetId']}'),
+                      Text('المُبلغ: @${r['reporter']?['username'] ?? 'غير معروف'} | معرّف المحتوى المخالف: ${r['targetId']}'),
                       Text('سبب البلاغ الرئيسي: ${r['reason']}'),
                       const SizedBox(height: 6),
                       Text('تفاصيل إضافية: ${r['description']}', style: const TextStyle(color: Colors.white70)),
@@ -365,8 +394,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   leading: Icon(rm['type'] == 'video' ? Icons.videocam : Icons.mic, color: const Color(0xFF6C5CE7), size: 28),
                   title: Text(rm['title']),
-                  subtitle: Text('المالك: ${rm['owner']} | الحاضرون حالياً: ${rm['listeners']} مستخدم'),
-                  trailing: rm['isActive']
+                  subtitle: Text('المالك: ${rm['owner']?['name'] ?? 'غير معروف'} | الحاضرون حالياً: ${rm['listenersCount'] ?? 0} مستخدم'),
+                  trailing: (rm['isActive'] ?? false)
                       ? ElevatedButton(
                           onPressed: () => _closeRoom(i),
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -410,18 +439,18 @@ class _DashboardPageState extends State<DashboardPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('@${v['author']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00CEC9))),
+                          Text('@${v['author']?['username'] ?? 'غير معروف'}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00CEC9))),
                           const SizedBox(height: 6),
-                          Text(v['caption'], maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(v['caption'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis),
                         ],
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('👁️ ${v['views']} | ❤️ ${v['likes']}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                          Text('👁️ ${v['viewsCount'] ?? 0} | ❤️ ${v['likesCount'] ?? 0}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
                           IconButton(
                             icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
-                            onPressed: () => _deleteVideo(v['id']),
+                            onPressed: () => _deleteVideo(v['_id']),
                           ),
                         ],
                       ),

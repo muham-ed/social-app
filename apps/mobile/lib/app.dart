@@ -1,29 +1,15 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'core/config/theme/app_theme.dart';
 import 'core/config/routes/app_router.dart';
-import 'core/config/constants/app_constants.dart';
-import 'l10n/app_localizations.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      title: 'تواصل',
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: const Color(0xFF6C5CE7)),
       routerConfig: AppRouter.router(context),
-      locale: const Locale('ar'),
-      supportedLocales: const [Locale('ar'), Locale('en')],
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
     );
   }
 }

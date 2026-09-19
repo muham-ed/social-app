@@ -1,5 +1,9 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../bloc/auth_bloc.dart';
+import '../bloc/auth_event.dart';
+import '../bloc/auth_state.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -11,7 +15,6 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  bool _loading = false;
   bool _obscure = true;
 
   @override
@@ -21,156 +24,132 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
-    setState(() => _loading = false);
-    context.go('/home');
+    context.read<AuthBloc>().add(LoginRequested(
+          emailOrUsername: _emailCtrl.text.trim(),
+          password: _passCtrl.text.trim(),
+        ));
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 40),
-                Center(
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6C5CE7), Color(0xFFFD79A8)],
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthAuthenticated) {
+          context.go('/home');
+        } else if (state is AuthError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message)),
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF6C5CE7),
+          title: const Text('تسجيل الدخول', style: TextStyle(color: Colors.white)),
+          centerTitle: true,
+          elevation: 0,
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 40),
+                  Center(
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6C5CE7),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      borderRadius: BorderRadius.circular(24),
+                      child: const Icon(Icons.chat_bubble_rounded,
+                          color: Colors.white, size: 44),
                     ),
-                    child: const Icon(Icons.chat_bubble_rounded,
-                        color: Colors.white, size: 44),
                   ),
-                ),
-                const SizedBox(height: 32),
-                const Text('مرحباً بك 👋',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D3436))),
-                const SizedBox(height: 8),
-                const Text('سجّل دخولك للمتابعة',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 15, color: Colors.grey)),
-                const SizedBox(height: 40),
-                TextFormField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    hintText: 'البريد الإلكتروني',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    filled: true,
-                    fillColor: const Color(0xFFF8F9FD),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
+                  const SizedBox(height: 32),
+                  const Text('مرحباً بك في تواصل',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2D3436))),
+                  const SizedBox(height: 40),
+                  TextFormField(
+                    controller: _emailCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'البريد الإلكتروني',
+                      prefixIcon: const Icon(Icons.email),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 16),
+                    validator: (v) => (v == null || v.isEmpty) ? 'البريد مطلوب' : null,
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'البريد مطلوب';
-                    if (!v.contains('@')) return 'بريد غير صالح';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passCtrl,
-                  obscureText: _obscure,
-                  decoration: InputDecoration(
-                    hintText: 'كلمة المرور',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscure
-                          ? Icons.visibility_off
-                          : Icons.visibility),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passCtrl,
+                    obscureText: _obscure,
+                    decoration: InputDecoration(
+                      hintText: 'كلمة المرور',
+                      prefixIcon: const Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                    filled: true,
-                    fillColor: const Color(0xFFF8F9FD),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 16),
+                    validator: (v) => (v == null || v.isEmpty) ? 'كلمة المرور مطلوبة' : null,
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'كلمة المرور مطلوبة';
-                    if (v.length < 6) return '6 أحرف على الأقل';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: () {},
-                    child: const Text('نسيت كلمة المرور؟',
-                        style: TextStyle(color: Color(0xFF6C5CE7))),
+                  const SizedBox(height: 32),
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      final loading = state is AuthLoading;
+                      return SizedBox(
+                        height: 54,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6C5CE7),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: loading ? null : _submit,
+                          child: loading
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : const Text('تسجيل الدخول',
+                                  style: TextStyle(fontSize: 18)),
+                        ),
+                      );
+                    },
                   ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 54,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6C5CE7),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
-                    ),
-                    onPressed: _loading ? null : _submit,
-                    child: _loading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Text('تسجيل الدخول',
-                            style: TextStyle(
-                                fontSize: 17, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.check_box, color: Colors.green, size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'الـ Backend مش شغال، بس الواجهات شغالة',
+                        style: TextStyle(color: Colors.green, fontSize: 13),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('ليس لديك حساب؟ ',
-                        style: TextStyle(color: Colors.grey)),
-                    TextButton(
-                      onPressed: () => context.go('/register'),
-                      child: const Text('أنشئ واحد',
-                          style: TextStyle(
-                              color: Color(0xFF6C5CE7),
-                              fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const Center(
-                  child: Text('💡 للتجربة: اكتب أي بريد وكلمة مرور',
-                      style: TextStyle(fontSize: 12, color: Colors.grey)),
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  TextButton(
+                    onPressed: () => context.go('/register'),
+                    child: const Text('ليس لديك حساب؟ أنشئ واحد'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

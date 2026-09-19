@@ -44,4 +44,10 @@ abstract class MessageRepository {
     required String messageId,
     required String reason,
   });
+
+  /// إرسال حالة الكتابة
+  void sendTypingStatus({required String receiverId, required bool isTyping});
+
+  /// مراقبة حالة الكتابة للطرف الآخر
+  Stream<bool> watchTypingStatus(String userId);
 }

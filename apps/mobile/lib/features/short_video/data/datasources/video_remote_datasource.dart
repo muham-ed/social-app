@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../../../../core/network/api_client.dart';
 import '../models/video_model.dart';
 
@@ -17,4 +18,16 @@ class VideoRemoteDataSource {
   }
 
   Future<void> delete(String id) => _client.delete('/videos/$id');
+
+  Future<VideoModel> uploadVideo({
+    required String filePath,
+    required String caption,
+  }) async {
+    final formData = FormData.fromMap({
+      'caption': caption,
+      'video': await MultipartFile.fromFile(filePath, filename: 'video.mp4'),
+    });
+    final res = await _client.post('/videos', data: formData);
+    return VideoModel.fromJson(res.data['data']);
+  }
 }

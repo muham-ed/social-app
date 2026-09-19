@@ -112,4 +112,20 @@ class MessageRepositoryImpl implements MessageRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  void sendTypingStatus({required String receiverId, required bool isTyping}) {
+    _wsClient.socket?.emit('message:typing', {'receiverId': receiverId, 'isTyping': isTyping});
+  }
+
+  @override
+  Stream<bool> watchTypingStatus(String userId) {
+    final controller = StreamController<bool>();
+    _wsClient.socket?.on('message:typing', (data) {
+      if (data is Map && data['from'] == userId) {
+        controller.add(data['isTyping'] as bool);
+      }
+    });
+    return controller.stream;
+  }
 }

@@ -27,4 +27,60 @@ const dashboardStats = async (req, res, next) => {
   }
 };
 
-module.exports = { dashboardStats };
+const listUsers = async (req, res, next) => {
+  try {
+    const users = await User.find().sort({ createdAt: -1 });
+    return ApiResponse.ok(res, users);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const toggleUserBan = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return ApiResponse.notFound(res, 'المستخدم غير موجود');
+    user.isBanned = !user.isBanned;
+    await user.save();
+    return ApiResponse.ok(res, user, user.isBanned ? 'تم حظر المستخدم' : 'تم فك حظر المستخدم');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const listActiveRooms = async (req, res, next) => {
+  try {
+    const rooms = await Room.find({ isActive: true }).populate('owner', 'name username');
+    return ApiResponse.ok(res, rooms);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const listVideos = async (req, res, next) => {
+  try {
+    const videos = await Video.find({ isDeleted: false }).populate('author', 'name username').sort({ createdAt: -1 });
+    return ApiResponse.ok(res, videos);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const sendGlobalNotification = async (req, res, next) => {
+  try {
+    // Logic to send notification to all users (e.g., via FCM)
+    // For now, just a placeholder response
+    return ApiResponse.ok(res, null, 'تم إرسال الإشعار لجميع المستخدمين');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  dashboardStats,
+  listUsers,
+  toggleUserBan,
+  listActiveRooms,
+  listVideos,
+  sendGlobalNotification,
+};

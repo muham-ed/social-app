@@ -39,4 +39,19 @@ class VideoRepositoryImpl implements VideoRepository {
       return const Left(NetworkFailure());
     }
   }
+
+  @override
+  Future<Either<Failure, Video>> uploadVideo({
+    required String filePath,
+    required String caption,
+  }) async {
+    try {
+      final video = await _remote.uploadVideo(filePath: filePath, caption: caption);
+      return Right(video);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (_) {
+      return const Left(NetworkFailure());
+    }
+  }
 }
